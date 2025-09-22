@@ -20,5 +20,5 @@ class Incident(Base):
         "Incident",
         remote_side=[id],
         foreign_keys=[parent_id],
-        backref="parent",  # optional, makes .parent accessible
+        backref="parent",
     )
