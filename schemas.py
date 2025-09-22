@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 class IncidentCreate(BaseModel):
     title: str
@@ -22,3 +22,8 @@ class IncidentResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+# Merge request schema for merge endpoint
+class MergeRequest(BaseModel):
+    parent_id: int
+    merge_ids: List[int]
