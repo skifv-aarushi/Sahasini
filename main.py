@@ -5,6 +5,7 @@ from typing import List
 from database import SessionLocal, engine, Base
 from models import Incident
 from schemas import IncidentCreate, IncidentResponse, MergeRequest
+from honeypot import router as honeypot_router,block_honeypot_ips
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -20,7 +21,7 @@ def get_db():
         db.close()
 
 # ---- CREATE INCIDENT ----
-@app.post("/incidents/", response_model=IncidentResponse)
+@app.post("/incidents/", response_model=IncidentResponse,dependencies=[Depends(block_honeypot_ips)])
 def create_incident(incident: IncidentCreate, db: Session = Depends(get_db)):
     db_incident = Incident(**incident.dict())
     db.add(db_incident)
@@ -36,12 +37,12 @@ def create_incident(incident: IncidentCreate, db: Session = Depends(get_db)):
     return db_incident
 
 # ---- LIST INCIDENTS ----
-@app.get("/incidents/", response_model=List[IncidentResponse])
+@app.get("/incidents/", response_model=List[IncidentResponse],dependencies=[Depends(block_honeypot_ips)])
 def list_incidents(db: Session = Depends(get_db)):
     return db.query(Incident).all()
 
 # ---- FORK INCIDENT ----
-@app.post("/incidents/{incident_id}/fork", response_model=IncidentResponse)
+@app.post("/incidents/{incident_id}/fork", response_model=IncidentResponse,dependencies=[Depends(block_honeypot_ips)])
 def fork_incident(incident_id: int, fork: IncidentCreate, db: Session = Depends(get_db)):
     parent = db.query(Incident).filter(Incident.id == incident_id).first()
     if not parent:
@@ -54,7 +55,7 @@ def fork_incident(incident_id: int, fork: IncidentCreate, db: Session = Depends(
     return db_incident
 
 # ---- MERGE INCIDENTS ----
-@app.post("/incidents/merge/")
+@app.post("/incidents/merge/",dependencies=[Depends(block_honeypot_ips)])
 def merge_incidents(request: MergeRequest, db: Session = Depends(get_db)):
     parent = db.query(Incident).filter(Incident.id == request.parent_id).first()
     if not parent:
@@ -78,7 +79,7 @@ def merge_incidents(request: MergeRequest, db: Session = Depends(get_db)):
     }
 
 # ---- GET CLUSTERS (PRECOMPUTED) ----
-@app.get("/clusters/")
+@app.get("/clusters/",dependencies=[Depends(block_honeypot_ips)])
 def get_clusters(db: Session = Depends(get_db)):
     # Fetch only active (not merged) incidents
     incidents = db.query(Incident).filter(Incident.merged_into.is_(None)).all()
@@ -96,3 +97,5 @@ def get_clusters(db: Session = Depends(get_db)):
         }
 
     return {"clusters": clusters}
+
+app.include_router(honeypot_router)

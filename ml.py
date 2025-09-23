@@ -14,7 +14,6 @@ if 'lat' not in df.columns or 'lon' not in df.columns:
     df['lat'] = np.nan
     df['lon'] = np.nan
 
-# --- Step 1: Semantic embeddings ---
 model = SentenceTransformer('all-MiniLM-L6-v2')
 texts = (df['title'].fillna('') + '. ' + df['description'].fillna('')).tolist()
 embeddings = model.encode(texts, convert_to_tensor=True)
@@ -35,11 +34,10 @@ for i in range(len(df)):
             if ('safe' in text_i and 'unsafe' in text_j) or ('unsafe' in text_i and 'safe' in text_j):
                 conflict_flags.append((i, j, sim))
 
-# --- Step 2: Semantic clustering ---
 semantic_clustering = DBSCAN(eps=0.5, min_samples=2, metric='cosine')
 df['semantic_cluster'] = semantic_clustering.fit_predict(embeddings.cpu().numpy())
 
-# --- Step 3: Geo clustering ---
+
 if not df['lat'].isnull().all():
     coords = df[['lat', 'lon']].to_numpy()
     geo_clustering = DBSCAN(eps=0.01, min_samples=2)  # ~1 km
@@ -47,13 +45,12 @@ if not df['lat'].isnull().all():
 else:
     df['geo_cluster'] = -1
 
-# --- Step 4: Recency ---
 df['publishedAt'] = pd.to_datetime(df['publishedAt']).dt.tz_localize(None)
 now = datetime.now()
 df['days_ago'] = (now - df['publishedAt']).dt.days
 df['recency_score'] = 1 - df['days_ago']/30  # recent articles get higher score
 
-# --- Step 5: Dynamic severity ---
+#to be replaced 
 severity_dict = {
     'murder': 5,
     'assault': 3,
@@ -73,7 +70,6 @@ def get_severity(text):
 
 df['severity'] = (df['title'].fillna('') + ' ' + df['description'].fillna('')).apply(get_severity)
 
-# --- Step 6: Risk scoring ---
 risk_scores = {}
 for cluster_id, cluster_df in df.groupby('geo_cluster'):
     frequency = len(cluster_df)

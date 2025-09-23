@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -26,3 +26,10 @@ class Incident(Base):
         foreign_keys=[parent_id],
         backref="parent",
     )
+
+class HoneypotLog(Base):
+    __tablename__ = "honeypot_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ip = Column(String, nullable=False)
+    user_agent = Column(String, nullable=True)
