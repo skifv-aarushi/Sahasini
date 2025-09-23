@@ -34,7 +34,7 @@ def get_db():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update this with your frontend URL in production
+    allow_origins=["*"],  # Update this
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
