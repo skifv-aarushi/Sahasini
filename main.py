@@ -6,9 +6,6 @@ from database import SessionLocal, engine, Base
 from models import Incident
 from schemas import IncidentCreate, IncidentResponse, MergeRequest
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
-
 # Create tables
 Base.metadata.create_all(bind=engine)
 
@@ -25,13 +22,12 @@ def get_db():
 # ---- CREATE INCIDENT ----
 @app.post("/incidents/", response_model=IncidentResponse)
 def create_incident(incident: IncidentCreate, db: Session = Depends(get_db)):
-    # Step 1: insert incident without parent_id
     db_incident = Incident(**incident.dict())
     db.add(db_incident)
     db.commit()
     db.refresh(db_incident)
 
-    # Step 2: generate unique parent_id (use id itself)
+    # generate unique parent_id (use id itself)
     db_incident.parent_id = db_incident.id
     db.add(db_incident)
     db.commit()
@@ -67,7 +63,6 @@ def merge_incidents(request: MergeRequest, db: Session = Depends(get_db)):
     for mid in request.merge_ids:
         incident = db.query(Incident).filter(Incident.id == mid).first()
         if incident and incident.id != request.parent_id:
-            # combine descriptions
             parent.description += f" | Merged: {incident.description}"
             incident.merged_into = request.parent_id
             db.add(incident)
@@ -82,17 +77,22 @@ def merge_incidents(request: MergeRequest, db: Session = Depends(get_db)):
         "new_description": parent.description
     }
 
-# ---- CLUSTER INCIDENTS ----
+# ---- GET CLUSTERS (PRECOMPUTED) ----
 @app.get("/clusters/")
-def cluster_incidents(db: Session = Depends(get_db)):
-    # cluster only active (not merged) incidents
+def get_clusters(db: Session = Depends(get_db)):
+    # Fetch only active (not merged) incidents
     incidents = db.query(Incident).filter(Incident.merged_into.is_(None)).all()
     if not incidents:
         return {"clusters": []}
 
-    descriptions = [i.description for i in incidents]
-    tfidf = TfidfVectorizer()
-    X = tfidf.fit_transform(descriptions)
-    kmeans = KMeans(n_clusters=min(3, len(descriptions)), random_state=0).fit(X)
-    clusters = {i.id: int(label) for i, label in zip(incidents, kmeans.labels_)}
+    clusters = {}
+    for inc in incidents:
+        # use semantic_cluster or geo_cluster (precomputed in ML pipeline)
+        clusters[inc.id] = {
+            "semantic_cluster": inc.semantic_cluster,
+            "geo_cluster": inc.geo_cluster,
+            "risk_score": inc.risk_score,
+            "risk_level": inc.risk_level
+        }
+
     return {"clusters": clusters}

@@ -14,6 +14,10 @@ class Incident(Base):
     longitude = Column(Float, nullable=False)
     incident_type = Column(String, nullable=False)
     timestamp = Column(String, nullable=False)
+    semantic_cluster = Column(Integer, nullable=True)
+    geo_cluster = Column(Integer, nullable=True)
+    risk_score = Column(Float, nullable=True)
+    risk_level = Column(String, nullable=True)
 
     # Relationships
     forks = relationship(
